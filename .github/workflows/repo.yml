@@ -18,6 +18,9 @@ jobs:
         with:
           dotnet-version: '8.0.x' # Dalamud uses .NET 8
 
+      - name: Setup Dalamud
+        uses: goatcorp/setup-dalamud@v3
+
       - name: Build Plugin
         run: |
           dotnet build -c Release
