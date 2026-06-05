@@ -12,33 +12,28 @@ public sealed class Plugin : IDalamudPlugin
     private const uint RefinedCosmicMayflyId = 52250;
     private const uint FisherJobId = 18;
 
-    private readonly IPluginLog _pluginLog;
-    private readonly IFramework _framework;
-    private readonly IObjectTable _objectTable;
-
     private uint _lastMissionId = 0;
     private uint _lastJobId = 0;
 
-    public Plugin(IDalamudPluginInterface pluginInterface, IPluginLog pluginLog, IFramework framework, IObjectTable objectTable)
+    public Plugin(IDalamudPluginInterface pluginInterface)
     {
-        _pluginLog = pluginLog;
-        _framework = framework;
-        _objectTable = objectTable;
+        // Initialize the service locator pattern
+        pluginInterface.Create<Services>();
 
-        _framework.Update += OnFrameworkUpdate;
-        _pluginLog.Information("CosmicBaiter loaded.");
+        Services.Framework.Update += OnFrameworkUpdate;
+        Services.Log.Information("CosmicBaiter loaded using service locator structure.");
     }
 
     public void Dispose()
     {
-        _framework.Update -= OnFrameworkUpdate;
-        _pluginLog.Information("CosmicBaiter disposed.");
+        Services.Framework.Update -= OnFrameworkUpdate;
+        Services.Log.Information("CosmicBaiter disposed.");
     }
 
     private unsafe void OnFrameworkUpdate(IFramework framework)
     {
         // Require local player to be valid
-        var localPlayer = _objectTable.LocalPlayer;
+        var localPlayer = Services.ObjectTable.LocalPlayer;
         if (localPlayer == null)
             return;
 
@@ -74,7 +69,7 @@ public sealed class Plugin : IDalamudPlugin
         var currentBait = UIState.Instance()->PlayerState.FishingBait;
         if (currentBait != RefinedCosmicMayflyId)
         {
-            _pluginLog.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
+            Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
             
             // Item execution command: 701, ActionType 4 (Item), ItemID
             GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
