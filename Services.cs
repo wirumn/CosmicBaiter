@@ -14,4 +14,6 @@ public class Services
     [PluginService] public static IFramework             Framework       { get; set; } = null!;
     [PluginService] public static IObjectTable           ObjectTable     { get; set; } = null!;
     [PluginService] public static ICondition             Condition       { get; set; } = null!;
+    [PluginService] public static ICommandManager        CommandManager  { get; set; } = null!;
+    [PluginService] public static IGameGui               GameGui         { get; set; } = null!;
 }
