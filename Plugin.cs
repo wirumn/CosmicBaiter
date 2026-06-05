@@ -34,87 +34,47 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void OnFrameworkUpdate(IFramework framework)
     {
-        // Require local player to be valid
         var localPlayer = Services.ObjectTable.LocalPlayer;
         if (localPlayer == null)
             return;
 
         uint currentJobId = localPlayer.ClassJob.RowId;
-        
-        // Safety check to ensure WKSManager is present
         var wksManager = WKSManager.Instance();
         if (wksManager == null)
         {
-            ResetState();
+            _lastMissionId = 0;
+            _lastJobId = 0;
             return;
         }
 
         uint currentMissionId = wksManager->State.CurrentMission.MissionUnitRowId;
 
-        // If the state changes (we change jobs, or mission starts/ends)
-        if (currentMissionId != _lastMissionId || currentJobId != _lastJobId)
+        if (currentMissionId == _lastMissionId && currentJobId == _lastJobId)
+            return;
+
+        _lastMissionId = currentMissionId;
+        _lastJobId = currentJobId;
+
+        if (currentMissionId != 0 && currentJobId == FisherJobId)
         {
-            // Only update our memory if we successfully handled the state change
-            if (HandleStateChange(currentMissionId, currentJobId))
-            {
-                _lastMissionId = currentMissionId;
-                _lastJobId = currentJobId;
-            }
+            EquipBaitIfNecessary();
         }
     }
 
-    private bool _hasLoggedIntent = false;
-
-    private unsafe bool HandleStateChange(uint missionId, uint jobId)
+    private unsafe void EquipBaitIfNecessary()
     {
-        if (missionId == 0 || jobId != FisherJobId)
-        {
-            _hasLoggedIntent = false;
-            return true; // Nothing to do, state change handled
-        }
-
         var currentBait = UIState.Instance()->PlayerState.FishingBait;
-        if (currentBait == RefinedCosmicMayflyId)
+        if (currentBait != RefinedCosmicMayflyId)
         {
-            if (_hasLoggedIntent)
+            if (InventoryManager.Instance()->GetInventoryItemCount(RefinedCosmicMayflyId) <= 0)
             {
-                Services.Log.Information("Successfully changed bait to Refined Cosmic Mayfly.");
-                _hasLoggedIntent = false;
+                Services.Log.Warning("You don't have any Refined Cosmic Mayfly! Cannot auto-equip bait.");
+                return;
             }
-            return true; // Already equipped, handled
+
+            Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
+            GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
         }
-
-        // Don't have the item? We can't handle it, but we should mark it as handled so we don't spam.
-        if (InventoryManager.Instance()->GetInventoryItemCount(RefinedCosmicMayflyId) <= 0)
-        {
-             if (!_hasLoggedIntent)
-             {
-                 Services.Log.Warning("You don't have any Refined Cosmic Mayfly! Cannot auto-equip bait.");
-                 _hasLoggedIntent = true;
-             }
-             return true; 
-        }
-
-        if (!_hasLoggedIntent)
-        {
-            Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, attempting to change to Refined Cosmic Mayfly ({RefinedCosmicMayflyId})...");
-            _hasLoggedIntent = true;
-        }
-
-        // If the player's line is already in the water, they are actively fishing and CANNOT change bait.
-        // We just wait patiently until they reel in.
-        var isFishing = Services.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.Fishing];
-        if (isFishing)
-            return false;
-
-        // We aggressively spam the equip command EVERY FRAME.
-        // If the player is mashing a macro (e.g., Chum -> Cast), they are constantly overwriting the action queue.
-        // By spamming this every frame, we overwrite THEIR queue with our bait swap, forcing the game to equip the bait 
-        // before allowing them to cast. This guarantees they cannot cast with the wrong bait!
-        GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
-        ActionManager.Instance()->UseAction(ActionType.Item, RefinedCosmicMayflyId);
-        
-        return false; // Return false so we verify it actually changed next frame!
     }
 
     private void ResetState()
