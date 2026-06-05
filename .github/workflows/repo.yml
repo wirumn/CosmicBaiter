@@ -62,7 +62,7 @@ jobs:
               DownloadLinkTesting = "https://raw.githubusercontent.com/${{ github.repository }}/repo/latest.zip"
           }
           $pluginMaster = @($pluginInfo)
-          $pluginMaster | ConvertTo-Json -Depth 10 | Out-File -FilePath "pluginmaster.json" -Encoding UTF8
+          ConvertTo-Json -InputObject $pluginMaster -Depth 10 | Out-File -FilePath "pluginmaster.json" -Encoding UTF8
 
       - name: Push to Repo Branch
         run: |
