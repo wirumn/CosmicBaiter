@@ -30,6 +30,8 @@ public sealed class Plugin : IDalamudPlugin
         Services.Log.Information("CosmicBaiter disposed.");
     }
 
+    private long _lastBaitChangeTime = 0;
+
     private unsafe void OnFrameworkUpdate(IFramework framework)
     {
         // Require local player to be valid
@@ -49,31 +51,52 @@ public sealed class Plugin : IDalamudPlugin
 
         uint currentMissionId = wksManager->State.CurrentMission.MissionUnitRowId;
 
-        // If nothing has changed, do nothing
-        if (currentMissionId == _lastMissionId && currentJobId == _lastJobId)
-            return;
-
-        // State has changed, record the new state
-        _lastMissionId = currentMissionId;
-        _lastJobId = currentJobId;
-
-        // Only act if we have an active mission and we are a Fisher
-        if (currentMissionId != 0 && currentJobId == FisherJobId)
+        // If the state changes (we change jobs, or mission starts/ends)
+        if (currentMissionId != _lastMissionId || currentJobId != _lastJobId)
         {
-            EquipBaitIfNecessary();
+            // Only update our memory if we successfully handled the state change
+            if (HandleStateChange(currentMissionId, currentJobId))
+            {
+                _lastMissionId = currentMissionId;
+                _lastJobId = currentJobId;
+            }
         }
     }
 
-    private unsafe void EquipBaitIfNecessary()
+    private unsafe bool HandleStateChange(uint missionId, uint jobId)
     {
+        if (missionId == 0 || jobId != FisherJobId)
+            return true; // Nothing to do, state change handled
+
         var currentBait = UIState.Instance()->PlayerState.FishingBait;
-        if (currentBait != RefinedCosmicMayflyId)
+        if (currentBait == RefinedCosmicMayflyId)
+            return true; // Already equipped, handled
+
+        // Don't have the item? We can't handle it, but we should mark it as handled so we don't spam.
+        if (InventoryManager.Instance()->GetInventoryItemCount(RefinedCosmicMayflyId) <= 0)
         {
-            Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
-            
-            // Item execution command: 701, ActionType 4 (Item), ItemID
-            GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
+             Services.Log.Warning("You don't have any Refined Cosmic Mayfly! Cannot auto-equip bait.");
+             return true; 
         }
+
+        // We need to equip it, check if we are allowed to right now.
+        var status = ActionManager.Instance()->GetActionStatus(ActionType.Item, RefinedCosmicMayflyId);
+        if (status != 0)
+        {
+            // We can't use it yet (e.g. animation lock, teleporting, casting).
+            // Return false so we try again next frame!
+            return false;
+        }
+
+        // We can use it! But don't spam if we just tried.
+        if (Environment.TickCount64 < _lastBaitChangeTime + 2000)
+            return false; // Wait for the server to process previous request
+
+        Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
+        GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
+        _lastBaitChangeTime = Environment.TickCount64;
+
+        return false; // Return false so we verify it actually changed next frame!
     }
 
     private void ResetState()
