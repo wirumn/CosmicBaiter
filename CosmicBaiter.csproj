@@ -1,0 +1,16 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>12</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Author>wirumn</Author>
+    <Name>CosmicBaiter</Name>
+    <Punchline>Automatically equips Refined Cosmic Mayfly for Stellar Missions.</Punchline>
+    <Description>Equips Refined Cosmic Mayfly automatically when you start a Cosmic Exploration fishing mission.</Description>
+    <Tags>fishing;cosmic exploration</Tags>
+    <AcceptsFeedback>false</AcceptsFeedback>
+  </PropertyGroup>
+</Project>
