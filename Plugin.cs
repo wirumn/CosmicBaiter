@@ -66,12 +66,6 @@ public sealed class Plugin : IDalamudPlugin
         var currentBait = UIState.Instance()->PlayerState.FishingBait;
         if (currentBait != RefinedCosmicMayflyId)
         {
-            if (InventoryManager.Instance()->GetInventoryItemCount(RefinedCosmicMayflyId) <= 0)
-            {
-                Services.Log.Warning("You don't have any Refined Cosmic Mayfly! Cannot auto-equip bait.");
-                return;
-            }
-
             Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
             GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
         }
