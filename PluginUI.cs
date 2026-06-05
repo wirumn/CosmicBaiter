@@ -1,5 +1,6 @@
-using ImGuiNET;
 using System;
+using Dalamud.Interface.Utility;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
 
@@ -18,7 +19,7 @@ namespace CosmicBaiter
                 MinimumSize = new Vector2(300, 150),
                 MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
             };
-            this.Flags = (Dalamud.Bindings.ImGui.ImGuiWindowFlags)(ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+            this.Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         }
 
         public void Dispose()
