@@ -13,4 +13,5 @@ public class Services
     [PluginService] public static IPluginLog             Log             { get; set; } = null!;
     [PluginService] public static IFramework             Framework       { get; set; } = null!;
     [PluginService] public static IObjectTable           ObjectTable     { get; set; } = null!;
+    [PluginService] public static ICondition             Condition       { get; set; } = null!;
 }

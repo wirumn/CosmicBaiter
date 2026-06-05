@@ -63,37 +63,59 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private bool _hasLoggedIntent = false;
+
     private unsafe bool HandleStateChange(uint missionId, uint jobId)
     {
         if (missionId == 0 || jobId != FisherJobId)
+        {
+            _hasLoggedIntent = false;
             return true; // Nothing to do, state change handled
+        }
 
         var currentBait = UIState.Instance()->PlayerState.FishingBait;
         if (currentBait == RefinedCosmicMayflyId)
+        {
+            if (_hasLoggedIntent)
+            {
+                Services.Log.Information("Successfully changed bait to Refined Cosmic Mayfly.");
+                _hasLoggedIntent = false;
+            }
             return true; // Already equipped, handled
+        }
 
         // Don't have the item? We can't handle it, but we should mark it as handled so we don't spam.
         if (InventoryManager.Instance()->GetInventoryItemCount(RefinedCosmicMayflyId) <= 0)
         {
-             Services.Log.Warning("You don't have any Refined Cosmic Mayfly! Cannot auto-equip bait.");
+             if (!_hasLoggedIntent)
+             {
+                 Services.Log.Warning("You don't have any Refined Cosmic Mayfly! Cannot auto-equip bait.");
+                 _hasLoggedIntent = true;
+             }
              return true; 
         }
 
-        // We need to equip it, check if we are allowed to right now.
-        var status = ActionManager.Instance()->GetActionStatus(ActionType.Item, RefinedCosmicMayflyId);
-        if (status != 0)
+        if (!_hasLoggedIntent)
         {
-            // We can't use it yet (e.g. animation lock, teleporting, casting).
-            // Return false so we try again next frame!
-            return false;
+            Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, attempting to change to Refined Cosmic Mayfly ({RefinedCosmicMayflyId})...");
+            _hasLoggedIntent = true;
         }
 
-        // We can use it! But don't spam if we just tried.
-        if (Environment.TickCount64 < _lastBaitChangeTime + 2000)
-            return false; // Wait for the server to process previous request
+        // If the player's line is already in the water, they are actively fishing and CANNOT change bait.
+        // We just wait patiently until they reel in.
+        var isFishing = Services.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.Fishing];
+        if (isFishing)
+            return false;
 
-        Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
+        // We aggressively spam the equip command every 500ms. 
+        // If the player is in an animation lock (e.g., Chumming), the client will drop it.
+        // By spamming it rapidly, we ensure it slips in the EXACT MILLISECOND the animation lock ends!
+        if (Environment.TickCount64 < _lastBaitChangeTime + 500)
+            return false;
+
         GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
+        ActionManager.Instance()->UseAction(ActionType.Item, RefinedCosmicMayflyId); // Also attempt ActionManager just in case it queues better
+        
         _lastBaitChangeTime = Environment.TickCount64;
 
         return false; // Return false so we verify it actually changed next frame!
