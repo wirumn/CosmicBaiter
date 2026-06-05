@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Game.WKS;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace CosmicBaiter;
 
@@ -109,10 +110,10 @@ public sealed class Plugin : IDalamudPlugin
         var addonInfo = Services.GameGui.GetAddonByName("WKSHud", 1);
         if (addonInfo.Address != nint.Zero)
         {
-            var addon = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)addonInfo.Address;
+            var addon = (AtkUnitBase*)addonInfo.Address;
             if (addon->IsVisible)
             {
-                var values = stackalloc FFXIVClientStructs.FFXIV.Component.GUI.AtkValue[1];
+                var values = stackalloc AtkValue[1];
                 values[0].SetInt(0);
                 addon->FireCallback(1, values);
             }

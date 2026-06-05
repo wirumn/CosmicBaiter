@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System;
 using System.Numerics;
+using Dalamud.Interface.Utility.Raii;
 
 namespace CosmicBaiter
 {
