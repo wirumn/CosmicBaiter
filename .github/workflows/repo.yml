@@ -19,7 +19,13 @@ jobs:
           dotnet-version: '8.0.x' # Dalamud uses .NET 8
 
       - name: Setup Dalamud
-        uses: goatcorp/setup-dalamud@v3
+        run: |
+          $versionInfo = Invoke-RestMethod -Uri "https://kamori.goats.dev/Dalamud/Release/VersionInfo"
+          $downloadUrl = $versionInfo.downloadUrl
+          Invoke-WebRequest -Uri $downloadUrl -OutFile dalamud.zip
+          $extractPath = "$env:AppData\XIVLauncher\addon\Hooks\dev"
+          New-Item -ItemType Directory -Force -Path $extractPath
+          Expand-Archive -Path dalamud.zip -DestinationPath $extractPath -Force
 
       - name: Build Plugin
         run: |
