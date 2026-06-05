@@ -2,9 +2,6 @@ using System;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using ECommons;
-using static ECommons.GenericHelpers;
-using static ECommons.UIHelpers.AddonMasterImplementations.AddonMaster;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Game.WKS;
@@ -30,8 +27,6 @@ public sealed class Plugin : IDalamudPlugin
         this.Configuration = Services.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         this.Configuration.Initialize(Services.PluginInterface);
 
-        ECommonsMain.Init(pluginInterface, this);
-
         this.PluginUi = new PluginUI(this.Configuration);
 
         Services.CommandManager.AddHandler("/cosmicbaiter", new Dalamud.Game.Command.CommandInfo(OnCommand)
@@ -56,7 +51,6 @@ public sealed class Plugin : IDalamudPlugin
         Services.CommandManager.RemoveHandler("/cosmicbaiter");
 
         this.PluginUi.Dispose();
-        ECommonsMain.Dispose();
 
         Services.Log.Information("CosmicBaiter disposed.");
     }
@@ -75,8 +69,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         this.PluginUi.Visible = true;
     }
-
-    private long _lastBaitChangeTime = 0;
 
     private unsafe void OnFrameworkUpdate(IFramework framework)
     {
@@ -112,12 +104,18 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private void OpenMissionProgressWindow()
+    private unsafe void OpenMissionProgressWindow()
     {
-        if (GenericHelpers.TryGetAddonMaster<WKSHud>("WKSHud", out var hud) && hud.IsAddonReady)
+        var addonInfo = Services.GameGui.GetAddonByName("WKSHud", 1);
+        if (addonInfo.Address != nint.Zero)
         {
-            Services.Log.Debug("Auto-opening Mission in Progress window...");
-            hud.Mission();
+            var addon = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)addonInfo.Address;
+            if (addon->IsVisible)
+            {
+                var values = stackalloc FFXIVClientStructs.FFXIV.Component.GUI.AtkValue[1];
+                values[0].SetInt(0);
+                addon->FireCallback(1, values);
+            }
         }
     }
 
