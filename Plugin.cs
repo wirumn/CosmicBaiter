@@ -107,17 +107,13 @@ public sealed class Plugin : IDalamudPlugin
         if (isFishing)
             return false;
 
-        // We aggressively spam the equip command every 500ms. 
-        // If the player is in an animation lock (e.g., Chumming), the client will drop it.
-        // By spamming it rapidly, we ensure it slips in the EXACT MILLISECOND the animation lock ends!
-        if (Environment.TickCount64 < _lastBaitChangeTime + 500)
-            return false;
-
+        // We aggressively spam the equip command EVERY FRAME.
+        // If the player is mashing a macro (e.g., Chum -> Cast), they are constantly overwriting the action queue.
+        // By spamming this every frame, we overwrite THEIR queue with our bait swap, forcing the game to equip the bait 
+        // before allowing them to cast. This guarantees they cannot cast with the wrong bait!
         GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
-        ActionManager.Instance()->UseAction(ActionType.Item, RefinedCosmicMayflyId); // Also attempt ActionManager just in case it queues better
+        ActionManager.Instance()->UseAction(ActionType.Item, RefinedCosmicMayflyId);
         
-        _lastBaitChangeTime = Environment.TickCount64;
-
         return false; // Return false so we verify it actually changed next frame!
     }
 
