@@ -1,0 +1,65 @@
+name: Build and Publish Plugin Repo
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x' # Dalamud uses .NET 8
+
+      - name: Build Plugin
+        run: |
+          dotnet build -c Release
+          
+      - name: Package Plugin
+        run: |
+          $publishDir = "bin\Release\CosmicBaiter"
+          New-Item -ItemType Directory -Force -Path $publishDir
+          Copy-Item -Path "bin\Release\CosmicBaiter.dll" -Destination $publishDir
+          Copy-Item -Path "bin\Release\CosmicBaiter.json" -Destination $publishDir
+          if (Test-Path "bin\Release\CosmicBaiter.pdb") { Copy-Item -Path "bin\Release\CosmicBaiter.pdb" -Destination $publishDir }
+          
+          Compress-Archive -Path "$publishDir\*" -DestinationPath "latest.zip" -Force
+
+      - name: Generate PluginMaster
+        run: |
+          $manifest = Get-Content "bin\Release\CosmicBaiter.json" | ConvertFrom-Json
+          $pluginInfo = @{
+              Author = $manifest.Author
+              Name = $manifest.Name
+              Punchline = $manifest.Punchline
+              Description = $manifest.Description
+              InternalName = $manifest.InternalName
+              AssemblyVersion = $manifest.AssemblyVersion
+              RepoUrl = $manifest.RepoUrl
+              ApplicableVersion = $manifest.ApplicableVersion
+              Tags = $manifest.Tags
+              DalamudApiLevel = $manifest.DalamudApiLevel
+              DownloadCount = 0
+              LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+              DownloadLinkInstall = "https://raw.githubusercontent.com/${{ github.repository }}/repo/latest.zip"
+              DownloadLinkUpdate = "https://raw.githubusercontent.com/${{ github.repository }}/repo/latest.zip"
+              DownloadLinkTesting = "https://raw.githubusercontent.com/${{ github.repository }}/repo/latest.zip"
+          }
+          $pluginMaster = @($pluginInfo)
+          $pluginMaster | ConvertTo-Json -Depth 10 | Out-File -FilePath "pluginmaster.json" -Encoding UTF8
+
+      - name: Push to Repo Branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B repo
+          git add latest.zip pluginmaster.json -f
+          git commit -m "Update plugin repository [skip ci]"
+          git push -f origin repo
