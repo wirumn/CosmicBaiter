@@ -67,7 +67,7 @@ public sealed class Plugin : IDalamudPlugin
         if (currentBait != RefinedCosmicMayflyId)
         {
             Services.Log.Information($"Mission active and currently Fisher. Bait is {currentBait}, changing to Refined Cosmic Mayfly ({RefinedCosmicMayflyId}).");
-            GameMain.ExecuteCommand(701, 4, (int)RefinedCosmicMayflyId, 0, 0);
+            ActionManager.Instance()->UseAction(ActionType.Item, RefinedCosmicMayflyId);
         }
     }
 
