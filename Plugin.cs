@@ -1,4 +1,5 @@
 using System;
+using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -18,7 +19,8 @@ public sealed class Plugin : IDalamudPlugin
     private uint _lastJobId = 0;
 
     public Configuration Configuration { get; init; }
-    public PluginUI PluginUi { get; init; }
+    public WindowSystem WindowSystem = new("CosmicBaiter");
+    public ConfigWindow ConfigWindow { get; init; }
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
@@ -28,7 +30,8 @@ public sealed class Plugin : IDalamudPlugin
         this.Configuration = Services.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         this.Configuration.Initialize(Services.PluginInterface);
 
-        this.PluginUi = new PluginUI(this.Configuration);
+        this.ConfigWindow = new ConfigWindow(this.Configuration);
+        this.WindowSystem.AddWindow(this.ConfigWindow);
 
         Services.CommandManager.AddHandler("/cosmicbaiter", new Dalamud.Game.Command.CommandInfo(OnCommand)
         {
@@ -51,24 +54,25 @@ public sealed class Plugin : IDalamudPlugin
 
         Services.CommandManager.RemoveHandler("/cosmicbaiter");
 
-        this.PluginUi.Dispose();
+        this.WindowSystem.RemoveAllWindows();
+        this.ConfigWindow.Dispose();
 
         Services.Log.Information("CosmicBaiter disposed.");
     }
 
     private void OnCommand(string command, string args)
     {
-        this.PluginUi.Visible = true;
+        this.ConfigWindow.IsOpen = true;
     }
 
     private void DrawUI()
     {
-        this.PluginUi.Draw();
+        this.WindowSystem.Draw();
     }
 
     private void DrawConfigUI()
     {
-        this.PluginUi.Visible = true;
+        this.ConfigWindow.IsOpen = true;
     }
 
     private unsafe void OnFrameworkUpdate(IFramework framework)
