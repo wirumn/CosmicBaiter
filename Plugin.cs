@@ -117,9 +117,20 @@ public sealed class Plugin : IDalamudPlugin
             var addon = (AtkUnitBase*)addonInfo.Address;
             if (addon->IsVisible)
             {
-                var values = stackalloc AtkValue[1];
-                values[0].SetInt(0);
-                addon->FireCallback(1, values);
+                var button = addon->GetComponentButtonById(7u);
+                if (button != null && button->IsEnabled)
+                {
+                    var ownerNode = button->AtkComponentBase.OwnerNode;
+                    if (ownerNode != null)
+                    {
+                        var atkEvent = ownerNode->AtkResNode.AtkEventManager.Event;
+                        if (atkEvent != null)
+                        {
+                            Services.Log.Debug("Auto-opening Mission in Progress window via ReceiveEvent...");
+                            addon->ReceiveEvent(atkEvent->State.EventType, (int)atkEvent->Param, atkEvent, null);
+                        }
+                    }
+                }
             }
         }
     }
