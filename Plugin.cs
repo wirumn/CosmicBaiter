@@ -98,13 +98,19 @@ public sealed class Plugin : IDalamudPlugin
         _lastMissionId = currentMissionId;
         _lastJobId = currentJobId;
 
-        if (currentMissionId != 0 && currentJobId == FisherJobId)
+        if (currentMissionId != 0)
         {
-            EquipBaitIfNecessary();
-
-            if (this.Configuration.AutoOpenMissionProgress)
+            if (currentJobId == FisherJobId)
             {
-                OpenMissionProgressWindow();
+                EquipBaitIfNecessary();
+            }
+
+            if (currentJobId == FisherJobId || currentJobId == 16 /* Miner */ || currentJobId == 17 /* Botanist */)
+            {
+                if (this.Configuration.AutoOpenMissionProgress)
+                {
+                    OpenMissionProgressWindow();
+                }
             }
         }
     }
