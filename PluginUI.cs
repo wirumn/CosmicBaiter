@@ -45,6 +45,50 @@ namespace CosmicBaiter
                 this.Configuration.Save();
             }
             ImGui.TextWrapped("Automatically opens the 'Mission in Progress' window when a mission starts.");
+
+            ImGui.Separator();
+
+            var autoLoop = this.Configuration.AutoLoopMissions;
+            if (ImGui.Checkbox("Auto Start + Report Missions (Miner/Botanist)", ref autoLoop))
+            {
+                this.Configuration.AutoLoopMissions = autoLoop;
+                this.Configuration.Save();
+            }
+            ImGui.TextWrapped("Automatically starts the mission, waits while you gather, then reports it once " +
+                              "the rank below is reached. You handle the gathering. Toggle with /cosmicbaiter auto.");
+
+            ImGui.Text("Report at rank:");
+            ImGui.SameLine();
+            if (ImGui.RadioButton("Bronze", this.Configuration.MinReportRank == 1))
+            {
+                this.Configuration.MinReportRank = 1;
+                this.Configuration.Save();
+            }
+            ImGui.SameLine();
+            if (ImGui.RadioButton("Silver", this.Configuration.MinReportRank == 2))
+            {
+                this.Configuration.MinReportRank = 2;
+                this.Configuration.Save();
+            }
+            ImGui.SameLine();
+            if (ImGui.RadioButton("Gold", this.Configuration.MinReportRank == 3))
+            {
+                this.Configuration.MinReportRank = 3;
+                this.Configuration.Save();
+            }
+            ImGui.TextWrapped("Reports once this rank is reached and gathering has stopped. Gold normally " +
+                              "requires both nodes, so it doubles as a 'both nodes done' check.");
+
+            ImGui.Spacing();
+            ImGui.Text($"Learned mission IDs - Miner: {this.Configuration.MinerMissionId}, " +
+                       $"Botanist: {this.Configuration.BotanistMissionId}");
+            if (ImGui.Button("Reset learned IDs"))
+            {
+                this.Configuration.MinerMissionId = 0;
+                this.Configuration.BotanistMissionId = 0;
+                this.Configuration.Save();
+            }
+            ImGui.TextWrapped("Start the correct mission once on each job to capture its ID, then enable auto.");
         }
     }
 }

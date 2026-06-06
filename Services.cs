@@ -16,4 +16,5 @@ public class Services
     [PluginService] public static ICondition             Condition       { get; set; } = null!;
     [PluginService] public static ICommandManager        CommandManager  { get; set; } = null!;
     [PluginService] public static IGameGui               GameGui         { get; set; } = null!;
+    [PluginService] public static IChatGui               Chat            { get; set; } = null!;
 }
