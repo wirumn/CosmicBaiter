@@ -18,7 +18,8 @@ public sealed class Plugin : IDalamudPlugin
     private const uint BotanistJobId = 17;
 
     // Auto-loop tuning (milliseconds).
-    private const long ScoreSettleMs = 2000;      // score must be unchanged this long before reporting (= done gathering)
+    private const long MinNodeOpenMs = 1500;      // ignore Gathering-window flickers shorter than this
+    private const long ReportDelayMs = 1500;      // wait this long after the last node's window closes before reporting
     private const long MissionGoneMs = 1000;      // mission id must read 0 this long before we trust it's really over (flicker guard)
     private const long InitiateCooldownMs = 3000; // minimum gap between InitiateMission attempts
     private const int  MaxInitiateAttempts = 3;   // give up + disable after this many failed starts
@@ -28,11 +29,15 @@ public sealed class Plugin : IDalamudPlugin
 
     // Auto-loop state trackers.
     private long _missionZeroSinceTick = 0;
-    private long _lastScoreChangeTick = 0;
     private long _lastInitiateTick = 0;
-    private ushort _lastScore = 0;
     private bool _reportRequested = false;
     private int _initiateAttempts = 0;
+
+    // Node-completion tracking (counts Gathering-window open -> close cycles).
+    private bool _gatheringWasOpen = false;
+    private long _gatheringOpenedTick = 0;
+    private long _gatheringClosedTick = 0;
+    private int _nodesGathered = 0;
 
     public Configuration Configuration { get; init; }
     public WindowSystem WindowSystem = new("CosmicBaiter");
@@ -204,11 +209,21 @@ public sealed class Plugin : IDalamudPlugin
     private void ResetLoopTrackers()
     {
         _missionZeroSinceTick = 0;
-        _lastScoreChangeTick = 0;
         _lastInitiateTick = 0;
-        _lastScore = 0;
         _reportRequested = false;
         _initiateAttempts = 0;
+        _gatheringWasOpen = false;
+        _gatheringOpenedTick = 0;
+        _gatheringClosedTick = 0;
+        _nodesGathered = 0;
+    }
+
+    private unsafe bool IsGatheringWindowOpen()
+    {
+        var info = Services.GameGui.GetAddonByName("Gathering", 1);
+        if (info.Address == nint.Zero)
+            return false;
+        return ((AtkUnitBase*)info.Address)->IsVisible;
     }
 
     // Drives the start -> watch -> report -> repeat loop for Miner & Botanist.
@@ -227,8 +242,6 @@ public sealed class Plugin : IDalamudPlugin
         long now = Environment.TickCount64;
         ref var mission = ref mgr->State.CurrentMission;
         ushort missionId = mission.MissionUnitRowId;
-        ushort score = mission.Score;
-        var rank = mission.Rank;
 
         uint learnedId = jobId == MinerJobId
             ? this.Configuration.MinerMissionId
@@ -249,43 +262,47 @@ public sealed class Plugin : IDalamudPlugin
                 Services.Log.Information($"[AutoLoop] Learned mission {missionId} for job {jobId}.");
             }
 
-            if (rank == WKSMissionModule.MissionRank.Failed)
-            {
-                Services.Log.Warning("[AutoLoop] Mission failed; abandoning.");
-                module->AbandonMission();
-                ResetLoopTrackers();
-                return;
-            }
-
             // Wait for the game to clear the mission after we asked to report.
             if (_reportRequested)
                 return;
 
-            // Track score changes so we can tell when gathering has stopped.
-            if (score != _lastScore)
+            // Count node completions by watching the Gathering window open -> close.
+            bool open = IsGatheringWindowOpen();
+            if (open && !_gatheringWasOpen)
             {
-                _lastScore = score;
-                _lastScoreChangeTick = now;
+                _gatheringWasOpen = true;
+                _gatheringOpenedTick = now;
+            }
+            else if (!open && _gatheringWasOpen)
+            {
+                _gatheringWasOpen = false;
+                // Ignore brief flickers; only count a real gathering session.
+                if (now - _gatheringOpenedTick >= MinNodeOpenMs)
+                {
+                    _nodesGathered++;
+                    _gatheringClosedTick = now;
+                    Services.Log.Information($"[AutoLoop] Node {_nodesGathered}/{this.Configuration.NodesToGather} gathered.");
+                }
             }
 
-            bool rankReached = rank != WKSMissionModule.MissionRank.Failed
-                               && (int)rank >= this.Configuration.MinReportRank;
-            bool scoreSettled = _lastScoreChangeTick != 0
-                                && now - _lastScoreChangeTick >= ScoreSettleMs;
+            bool allNodesDone = _nodesGathered >= this.Configuration.NodesToGather;
+            bool settled = _gatheringClosedTick != 0 && now - _gatheringClosedTick >= ReportDelayMs;
 
-            if (rankReached && scoreSettled)
+            if (allNodesDone && !open && settled)
             {
-                Services.Log.Information($"[AutoLoop] Reporting mission {missionId} (rank {rank}, score {score}).");
+                Services.Log.Information($"[AutoLoop] Reporting mission {missionId} ({_nodesGathered} nodes gathered).");
                 module->ReportMission();
                 _reportRequested = true;
             }
         }
         else
         {
-            // No active mission.
+            // No active mission: clear per-mission tracking for the next one.
             _reportRequested = false;
-            _lastScore = 0;
-            _lastScoreChangeTick = 0;
+            _gatheringWasOpen = false;
+            _gatheringOpenedTick = 0;
+            _gatheringClosedTick = 0;
+            _nodesGathered = 0;
 
             if (learnedId == 0)
                 return; // nothing learned yet for this job: start one manually first.

@@ -57,27 +57,14 @@ namespace CosmicBaiter
             ImGui.TextWrapped("Automatically starts the mission, waits while you gather, then reports it once " +
                               "the rank below is reached. You handle the gathering. Toggle with /cosmicbaiter auto.");
 
-            ImGui.Text("Report at rank:");
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Bronze", this.Configuration.MinReportRank == 1))
+            int nodes = this.Configuration.NodesToGather;
+            if (ImGui.InputInt("Nodes to gather before reporting", ref nodes))
             {
-                this.Configuration.MinReportRank = 1;
+                this.Configuration.NodesToGather = Math.Clamp(nodes, 1, 10);
                 this.Configuration.Save();
             }
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Silver", this.Configuration.MinReportRank == 2))
-            {
-                this.Configuration.MinReportRank = 2;
-                this.Configuration.Save();
-            }
-            ImGui.SameLine();
-            if (ImGui.RadioButton("Gold", this.Configuration.MinReportRank == 3))
-            {
-                this.Configuration.MinReportRank = 3;
-                this.Configuration.Save();
-            }
-            ImGui.TextWrapped("Reports once this rank is reached and gathering has stopped. Gold normally " +
-                              "requires both nodes, so it doubles as a 'both nodes done' check.");
+            ImGui.TextWrapped("Reports only after this many gathering nodes have been fully gathered " +
+                              "(the Gathering window opening and closing). Rank/score are ignored.");
 
             ImGui.Spacing();
             ImGui.Text($"Learned mission IDs - Miner: {this.Configuration.MinerMissionId}, " +
