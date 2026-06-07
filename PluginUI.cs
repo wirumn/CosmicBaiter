@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Interface.Utility;
 using Dalamud.Bindings.ImGui;
 using System.Numerics;
@@ -86,15 +86,24 @@ namespace CosmicBaiter
             ImGui.TextWrapped("If the remaining mission time is below this value, the mission will be reported instead of starting a new craft.");
 
             ImGui.Spacing();
-            ImGui.Text($"Learned mission IDs - Miner: {this.Configuration.MinerMissionId}, " +
-                       $"Botanist: {this.Configuration.BotanistMissionId}");
+            ImGui.Text($"Learned mission IDs:\nMiner: {this.Configuration.MinerMissionId} | Botanist: {this.Configuration.BotanistMissionId}\n" +
+           $"CRP: {this.Configuration.CarpenterMissionId} | BSM: {this.Configuration.BlacksmithMissionId} | ARM: {this.Configuration.ArmorerMissionId}\n" +
+           $"GSM: {this.Configuration.GoldsmithMissionId} | LTW: {this.Configuration.LeatherworkerMissionId} | WVR: {this.Configuration.WeaverMissionId}");
+
             if (ImGui.Button("Reset learned IDs"))
             {
                 this.Configuration.MinerMissionId = 0;
                 this.Configuration.BotanistMissionId = 0;
+                this.Configuration.CarpenterMissionId = 0;
+                this.Configuration.BlacksmithMissionId = 0;
+                this.Configuration.ArmorerMissionId = 0;
+                this.Configuration.GoldsmithMissionId = 0;
+                this.Configuration.LeatherworkerMissionId = 0;
+                this.Configuration.WeaverMissionId = 0;
                 this.Configuration.Save();
             }
             ImGui.TextWrapped("Start the correct mission once on each job to capture its ID, then enable auto.");
         }
     }
 }
+

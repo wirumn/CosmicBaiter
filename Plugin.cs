@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -42,8 +42,8 @@ public sealed class Plugin : IDalamudPlugin
     private int _nodesGathered = 0;
 
     // Crafter tracking.
-    private bool _wasCrafting = false;
-    private long _craftingEndedTick = 0;
+    private bool _recipeWasOpen = false;
+    private long _recipeSettledTick = 0;
 
     public Configuration Configuration { get; init; }
     public WindowSystem WindowSystem = new("CosmicBaiter");
@@ -225,8 +225,8 @@ public sealed class Plugin : IDalamudPlugin
         _gatheringOpenedTick = 0;
         _gatheringClosedTick = 0;
         _nodesGathered = 0;
-        _wasCrafting = false;
-        _craftingEndedTick = 0;
+        _recipeWasOpen = false;
+        _recipeSettledTick = 0;
     }
 
     private unsafe bool IsGatheringWindowOpen()
@@ -314,8 +314,8 @@ public sealed class Plugin : IDalamudPlugin
             _gatheringOpenedTick = 0;
             _gatheringClosedTick = 0;
             _nodesGathered = 0;
-        _wasCrafting = false;
-        _craftingEndedTick = 0;
+        _recipeWasOpen = false;
+        _recipeSettledTick = 0;
 
             if (learnedId == 0)
                 return; // nothing learned yet for this job: start one manually first.
@@ -421,6 +421,13 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private unsafe bool IsRecipeNoteOpen()
+    {
+        var addonInfo = Services.GameGui.GetAddonByName("WKSRecipeNotebook", 1);
+        if (addonInfo.Address == nint.Zero) return false;
+        return ((AtkUnitBase*)addonInfo.Address)->IsVisible;
+    }
+
     private unsafe void HandleCrafterAutoLoop(WKSManager* mgr, uint jobId)
     {
         if (!IsCrafterJob(jobId))
@@ -452,45 +459,49 @@ public sealed class Plugin : IDalamudPlugin
             if (_reportRequested)
                 return;
 
-            bool isCrafting = Services.Condition[ConditionFlag.Crafting];
+            bool recipeOpen = IsRecipeNoteOpen();
             
-            if (isCrafting && !_wasCrafting)
+            if (recipeOpen && !_recipeWasOpen)
             {
-                _wasCrafting = true;
-                _craftingEndedTick = 0;
-                // Services.Log.Information("[AutoLoop] Crafting started.");
+                _recipeWasOpen = true;
+                _recipeSettledTick = now;
+                Services.Log.Information("[AutoLoop] WKSRecipeNotebook opened.");
             }
-            else if (!isCrafting && _wasCrafting)
+            else if (!recipeOpen && _recipeWasOpen)
             {
-                _wasCrafting = false;
-                _craftingEndedTick = now;
-                Services.Log.Information("[AutoLoop] Crafting finished.");
+                _recipeWasOpen = false;
+                _recipeSettledTick = 0;
+                Services.Log.Information("[AutoLoop] WKSRecipeNotebook closed.");
             }
 
-            if (_craftingEndedTick != 0 && now - _craftingEndedTick >= 2000)
+            // Retry clicking every 3 seconds if the window stays open (meaning craft hasn't started)
+            if (_recipeWasOpen && _recipeSettledTick != 0 && now - _recipeSettledTick >= 3000)
             {
-                _craftingEndedTick = 0;
-
-                long timeRem = GetCrafterTimeRemaining();
-                Services.Log.Information($"[AutoLoop] Craft settled. Time remaining: {timeRem}s. Threshold: {this.Configuration.MinCrafterTimeSeconds}s.");
-
-                if (timeRem > this.Configuration.MinCrafterTimeSeconds)
+                if (!Services.Condition[ConditionFlag.Crafting])
                 {
-                    ClickSynthesizeButton();
-                }
-                else
-                {
-                    Services.Log.Information($"[AutoLoop] Not enough time left ({timeRem}s). Reporting crafter mission {missionId}.");
-                    module->ReportMission();
-                    _reportRequested = true;
+                    long timeRem = GetCrafterTimeRemaining();
+                    
+                    if (timeRem > this.Configuration.MinCrafterTimeSeconds)
+                    {
+                        Services.Log.Information($"[AutoLoop] Attempting Synthesize... (Time left: {timeRem}s)");
+                        ClickSynthesizeButton();
+                        _recipeSettledTick = now; // wait another 3 seconds to try again
+                    }
+                    else
+                    {
+                        Services.Log.Information($"[AutoLoop] Not enough time left ({timeRem}s). Reporting crafter mission {missionId}.");
+                        module->ReportMission();
+                        _reportRequested = true;
+                        _recipeSettledTick = 0; // stop trying
+                    }
                 }
             }
         }
         else
         {
             _reportRequested = false;
-            _wasCrafting = false;
-            _craftingEndedTick = 0;
+            _recipeWasOpen = false;
+            _recipeSettledTick = 0;
 
             if (learnedId == 0) return;
 
@@ -518,3 +529,4 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
