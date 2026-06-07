@@ -23,6 +23,15 @@ namespace CosmicBaiter
         public uint MinerMissionId { get; set; } = 0;
         public uint BotanistMissionId { get; set; } = 0;
 
+        public bool AutoLoopCrafterMissions { get; set; } = false;
+        public int MinCrafterTimeSeconds { get; set; } = 100;
+        public uint WeaverMissionId { get; set; } = 0;
+        public uint LeatherworkerMissionId { get; set; } = 0;
+        public uint GoldsmithMissionId { get; set; } = 0;
+        public uint ArmorerMissionId { get; set; } = 0;
+        public uint BlacksmithMissionId { get; set; } = 0;
+        public uint CarpenterMissionId { get; set; } = 0;
+
         [NonSerialized]
         private IDalamudPluginInterface? PluginInterface;
 

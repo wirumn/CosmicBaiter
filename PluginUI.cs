@@ -57,14 +57,33 @@ namespace CosmicBaiter
             ImGui.TextWrapped("Automatically starts the mission, waits while you gather, then reports it once " +
                               "the rank below is reached. You handle the gathering. Toggle with /cosmicbaiter auto.");
 
-            int nodes = this.Configuration.NodesToGather;
-            if (ImGui.InputInt("Nodes to gather before reporting", ref nodes))
+            var nodesToGather = this.Configuration.NodesToGather;
+            if (ImGui.InputInt("Nodes To Gather Before Reporting", ref nodesToGather))
             {
-                this.Configuration.NodesToGather = Math.Clamp(nodes, 1, 10);
+                if (nodesToGather < 1) nodesToGather = 1;
+                this.Configuration.NodesToGather = nodesToGather;
                 this.Configuration.Save();
             }
-            ImGui.TextWrapped("Reports only after this many gathering nodes have been fully gathered " +
-                              "(the Gathering window opening and closing). Rank/score are ignored.");
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            var autoCrafter = this.Configuration.AutoLoopCrafterMissions;
+            if (ImGui.Checkbox("Auto Loop Crafter Missions (Weaver, LTW, GSM, ARM, BSM, CRP)", ref autoCrafter))
+            {
+                this.Configuration.AutoLoopCrafterMissions = autoCrafter;
+                this.Configuration.Save();
+            }
+            ImGui.TextWrapped("Automatically monitors time and presses Synthesize if there's enough time left. Otherwise, it reports and auto-restarts.");
+
+            var minCraftTime = this.Configuration.MinCrafterTimeSeconds;
+            if (ImGui.SliderInt("Minimum Time to Start Next Craft (Seconds)", ref minCraftTime, 60, 300))
+            {
+                this.Configuration.MinCrafterTimeSeconds = minCraftTime;
+                this.Configuration.Save();
+            }
+            ImGui.TextWrapped("If the remaining mission time is below this value, the mission will be reported instead of starting a new craft.");
 
             ImGui.Spacing();
             ImGui.Text($"Learned mission IDs - Miner: {this.Configuration.MinerMissionId}, " +

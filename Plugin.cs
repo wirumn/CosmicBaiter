@@ -1,8 +1,10 @@
-using System;
+﻿using System;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Dalamud.Game.ClientState.Conditions;
+using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Game.WKS;
@@ -38,6 +40,10 @@ public sealed class Plugin : IDalamudPlugin
     private long _gatheringOpenedTick = 0;
     private long _gatheringClosedTick = 0;
     private int _nodesGathered = 0;
+
+    // Crafter tracking.
+    private bool _wasCrafting = false;
+    private long _craftingEndedTick = 0;
 
     public Configuration Configuration { get; init; }
     public WindowSystem WindowSystem = new("CosmicBaiter");
@@ -145,6 +151,9 @@ public sealed class Plugin : IDalamudPlugin
         if (this.Configuration.AutoLoopMissions)
             HandleAutoLoop(wksManager, currentJobId);
 
+        if (this.Configuration.AutoLoopCrafterMissions)
+            HandleCrafterAutoLoop(wksManager, currentJobId);
+
         if (currentMissionId == _lastMissionId && currentJobId == _lastJobId)
             return;
 
@@ -216,6 +225,8 @@ public sealed class Plugin : IDalamudPlugin
         _gatheringOpenedTick = 0;
         _gatheringClosedTick = 0;
         _nodesGathered = 0;
+        _wasCrafting = false;
+        _craftingEndedTick = 0;
     }
 
     private unsafe bool IsGatheringWindowOpen()
@@ -303,6 +314,8 @@ public sealed class Plugin : IDalamudPlugin
             _gatheringOpenedTick = 0;
             _gatheringClosedTick = 0;
             _nodesGathered = 0;
+        _wasCrafting = false;
+        _craftingEndedTick = 0;
 
             if (learnedId == 0)
                 return; // nothing learned yet for this job: start one manually first.
@@ -327,6 +340,178 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             Services.Log.Information($"[AutoLoop] Initiating mission {learnedId} for job {jobId} (attempt {_initiateAttempts + 1}).");
+            module->InitiateMission((ushort)learnedId);
+            _lastInitiateTick = now;
+            _initiateAttempts++;
+        }
+    }
+
+    private bool IsCrafterJob(uint jobId)
+    {
+        return jobId is 8 or 10 or 11 or 12 or 13 or 14;
+    }
+
+    private uint GetLearnedCrafterMissionId(uint jobId)
+    {
+        return jobId switch
+        {
+            8 => this.Configuration.CarpenterMissionId,
+            10 => this.Configuration.BlacksmithMissionId,
+            11 => this.Configuration.ArmorerMissionId,
+            12 => this.Configuration.GoldsmithMissionId,
+            13 => this.Configuration.LeatherworkerMissionId,
+            14 => this.Configuration.WeaverMissionId,
+            _ => 0
+        };
+    }
+
+    private void SetLearnedCrafterMissionId(uint jobId, uint missionId)
+    {
+        switch (jobId)
+        {
+            case 8: this.Configuration.CarpenterMissionId = missionId; break;
+            case 10: this.Configuration.BlacksmithMissionId = missionId; break;
+            case 11: this.Configuration.ArmorerMissionId = missionId; break;
+            case 12: this.Configuration.GoldsmithMissionId = missionId; break;
+            case 13: this.Configuration.LeatherworkerMissionId = missionId; break;
+            case 14: this.Configuration.WeaverMissionId = missionId; break;
+        }
+        this.Configuration.Save();
+    }
+
+    private unsafe long GetCrafterTimeRemaining()
+    {
+        var c = UIState.Instance()->MassivePcContentTodo.Director;
+        if (c != null)
+        {
+            var todo = c->MassivePcContentTodos[1];
+            if (todo[1].Enabled)
+            {
+                var t = todo[1];
+                long rem = t.EndTimestamp - Framework.GetServerTime();
+                return rem > 0 ? rem : 0;
+            }
+        }
+        return 0;
+    }
+
+    private unsafe void ClickSynthesizeButton()
+    {
+        var addonInfo = Services.GameGui.GetAddonByName("WKSRecipeNotebook", 1);
+        if (addonInfo.Address != nint.Zero)
+        {
+            var addon = (AtkUnitBase*)addonInfo.Address;
+            if (addon->IsVisible)
+            {
+                var button = addon->GetComponentButtonById(50u);
+                if (button != null && button->IsEnabled)
+                {
+                    var ownerNode = button->AtkComponentBase.OwnerNode;
+                    if (ownerNode != null)
+                    {
+                        var atkEvent = ownerNode->AtkResNode.AtkEventManager.Event;
+                        if (atkEvent != null)
+                        {
+                            Services.Log.Information("[AutoLoop] Clicking Synthesize on WKSRecipeNotebook...");
+                            addon->ReceiveEvent(atkEvent->State.EventType, (int)atkEvent->Param, atkEvent, null);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private unsafe void HandleCrafterAutoLoop(WKSManager* mgr, uint jobId)
+    {
+        if (!IsCrafterJob(jobId))
+            return;
+        if (!mgr->IsLoaded)
+            return;
+
+        var module = mgr->MissionModule;
+        if (module == null)
+            return;
+
+        long now = Environment.TickCount64;
+        ref var mission = ref mgr->State.CurrentMission;
+        ushort missionId = mission.MissionUnitRowId;
+
+        uint learnedId = GetLearnedCrafterMissionId(jobId);
+
+        if (missionId != 0)
+        {
+            _missionZeroSinceTick = 0;
+            _initiateAttempts = 0;
+
+            if (learnedId == 0)
+            {
+                SetLearnedCrafterMissionId(jobId, missionId);
+                Services.Log.Information($"[AutoLoop] Learned crafter mission {missionId} for job {jobId}.");
+            }
+
+            if (_reportRequested)
+                return;
+
+            bool isCrafting = Services.Condition[ConditionFlag.Crafting];
+            
+            if (isCrafting && !_wasCrafting)
+            {
+                _wasCrafting = true;
+                _craftingEndedTick = 0;
+                // Services.Log.Information("[AutoLoop] Crafting started.");
+            }
+            else if (!isCrafting && _wasCrafting)
+            {
+                _wasCrafting = false;
+                _craftingEndedTick = now;
+                Services.Log.Information("[AutoLoop] Crafting finished.");
+            }
+
+            if (_craftingEndedTick != 0 && now - _craftingEndedTick >= 2000)
+            {
+                _craftingEndedTick = 0;
+
+                long timeRem = GetCrafterTimeRemaining();
+                Services.Log.Information($"[AutoLoop] Craft settled. Time remaining: {timeRem}s. Threshold: {this.Configuration.MinCrafterTimeSeconds}s.");
+
+                if (timeRem > this.Configuration.MinCrafterTimeSeconds)
+                {
+                    ClickSynthesizeButton();
+                }
+                else
+                {
+                    Services.Log.Information($"[AutoLoop] Not enough time left ({timeRem}s). Reporting crafter mission {missionId}.");
+                    module->ReportMission();
+                    _reportRequested = true;
+                }
+            }
+        }
+        else
+        {
+            _reportRequested = false;
+            _wasCrafting = false;
+            _craftingEndedTick = 0;
+
+            if (learnedId == 0) return;
+
+            if (_missionZeroSinceTick == 0)
+                _missionZeroSinceTick = now;
+            if (now - _missionZeroSinceTick < MissionGoneMs)
+                return;
+
+            if (now - _lastInitiateTick < InitiateCooldownMs)
+                return;
+
+            if (_initiateAttempts >= MaxInitiateAttempts)
+            {
+                Services.Log.Warning("[AutoLoop] InitiateMission failed repeatedly; disabling crafter auto loop.");
+                Services.Chat.Print("[CosmicBaiter] Could not start crafter mission; auto loop disabled.");
+                this.Configuration.AutoLoopCrafterMissions = false;
+                this.Configuration.Save();
+                return;
+            }
+
+            Services.Log.Information($"[AutoLoop] Initiating crafter mission {learnedId} for job {jobId} (attempt {_initiateAttempts + 1}).");
             module->InitiateMission((ushort)learnedId);
             _lastInitiateTick = now;
             _initiateAttempts++;
