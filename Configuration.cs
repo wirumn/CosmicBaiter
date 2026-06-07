@@ -31,6 +31,8 @@ namespace CosmicBaiter
         public uint ArmorerMissionId { get; set; } = 0;
         public uint BlacksmithMissionId { get; set; } = 0;
         public uint CarpenterMissionId { get; set; } = 0;
+        public uint AlchemistMissionId { get; set; } = 0;
+        public uint CulinarianMissionId { get; set; } = 0;
 
         [NonSerialized]
         private IDalamudPluginInterface? PluginInterface;

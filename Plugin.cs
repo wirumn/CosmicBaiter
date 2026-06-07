@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -44,6 +44,7 @@ public sealed class Plugin : IDalamudPlugin
     // Crafter tracking.
     private bool _recipeWasOpen = false;
     private long _recipeSettledTick = 0;
+    private bool _craftClicked = false;
 
     public Configuration Configuration { get; init; }
     public WindowSystem WindowSystem = new("CosmicBaiter");
@@ -227,6 +228,7 @@ public sealed class Plugin : IDalamudPlugin
         _nodesGathered = 0;
         _recipeWasOpen = false;
         _recipeSettledTick = 0;
+        _craftClicked = false;
     }
 
     private unsafe bool IsGatheringWindowOpen()
@@ -316,6 +318,7 @@ public sealed class Plugin : IDalamudPlugin
             _nodesGathered = 0;
         _recipeWasOpen = false;
         _recipeSettledTick = 0;
+        _craftClicked = false;
 
             if (learnedId == 0)
                 return; // nothing learned yet for this job: start one manually first.
@@ -348,7 +351,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private bool IsCrafterJob(uint jobId)
     {
-        return jobId is 8 or 10 or 11 or 12 or 13 or 14;
+        return jobId is >= 8 and <= 15;
     }
 
     private uint GetLearnedCrafterMissionId(uint jobId)
@@ -356,11 +359,13 @@ public sealed class Plugin : IDalamudPlugin
         return jobId switch
         {
             8 => this.Configuration.CarpenterMissionId,
-            10 => this.Configuration.BlacksmithMissionId,
-            11 => this.Configuration.ArmorerMissionId,
-            12 => this.Configuration.GoldsmithMissionId,
-            13 => this.Configuration.LeatherworkerMissionId,
-            14 => this.Configuration.WeaverMissionId,
+            9 => this.Configuration.BlacksmithMissionId,
+            10 => this.Configuration.ArmorerMissionId,
+            11 => this.Configuration.GoldsmithMissionId,
+            12 => this.Configuration.LeatherworkerMissionId,
+            13 => this.Configuration.WeaverMissionId,
+            14 => this.Configuration.AlchemistMissionId,
+            15 => this.Configuration.CulinarianMissionId,
             _ => 0
         };
     }
@@ -370,11 +375,13 @@ public sealed class Plugin : IDalamudPlugin
         switch (jobId)
         {
             case 8: this.Configuration.CarpenterMissionId = missionId; break;
-            case 10: this.Configuration.BlacksmithMissionId = missionId; break;
-            case 11: this.Configuration.ArmorerMissionId = missionId; break;
-            case 12: this.Configuration.GoldsmithMissionId = missionId; break;
-            case 13: this.Configuration.LeatherworkerMissionId = missionId; break;
-            case 14: this.Configuration.WeaverMissionId = missionId; break;
+            case 9: this.Configuration.BlacksmithMissionId = missionId; break;
+            case 10: this.Configuration.ArmorerMissionId = missionId; break;
+            case 11: this.Configuration.GoldsmithMissionId = missionId; break;
+            case 12: this.Configuration.LeatherworkerMissionId = missionId; break;
+            case 13: this.Configuration.WeaverMissionId = missionId; break;
+            case 14: this.Configuration.AlchemistMissionId = missionId; break;
+            case 15: this.Configuration.CulinarianMissionId = missionId; break;
         }
         this.Configuration.Save();
     }
@@ -465,27 +472,38 @@ public sealed class Plugin : IDalamudPlugin
             {
                 _recipeWasOpen = true;
                 _recipeSettledTick = now;
+                _craftClicked = false;
                 Services.Log.Information("[AutoLoop] WKSRecipeNotebook opened.");
             }
             else if (!recipeOpen && _recipeWasOpen)
             {
                 _recipeWasOpen = false;
                 _recipeSettledTick = 0;
+                _craftClicked = false;
                 Services.Log.Information("[AutoLoop] WKSRecipeNotebook closed.");
             }
 
-            // Retry clicking every 3 seconds if the window stays open (meaning craft hasn't started)
-            if (_recipeWasOpen && _recipeSettledTick != 0 && now - _recipeSettledTick >= 3000)
+            long waited = now - _recipeSettledTick;
+            long threshold = _craftClicked ? 1500 : 1000;
+
+            if (_recipeWasOpen && _recipeSettledTick != 0 && waited >= threshold)
             {
                 if (!Services.Condition[ConditionFlag.Crafting])
                 {
                     long timeRem = GetCrafterTimeRemaining();
                     
+                    if (timeRem <= 0)
+                    {
+                        // Time read failed or director not ready. Wait before taking action.
+                        return;
+                    }
+                    
                     if (timeRem > this.Configuration.MinCrafterTimeSeconds)
                     {
                         Services.Log.Information($"[AutoLoop] Attempting Synthesize... (Time left: {timeRem}s)");
                         ClickSynthesizeButton();
-                        _recipeSettledTick = now; // wait another 3 seconds to try again
+                        _recipeSettledTick = now; // wait retry interval
+                        _craftClicked = true;
                     }
                     else
                     {
@@ -493,6 +511,7 @@ public sealed class Plugin : IDalamudPlugin
                         module->ReportMission();
                         _reportRequested = true;
                         _recipeSettledTick = 0; // stop trying
+                        _craftClicked = false;
                     }
                 }
             }
@@ -502,6 +521,7 @@ public sealed class Plugin : IDalamudPlugin
             _reportRequested = false;
             _recipeWasOpen = false;
             _recipeSettledTick = 0;
+            _craftClicked = false;
 
             if (learnedId == 0) return;
 
@@ -529,4 +549,5 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
 

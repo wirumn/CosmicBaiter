@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Dalamud.Interface.Utility;
 using Dalamud.Bindings.ImGui;
 using System.Numerics;
@@ -70,7 +70,7 @@ namespace CosmicBaiter
             ImGui.Spacing();
 
             var autoCrafter = this.Configuration.AutoLoopCrafterMissions;
-            if (ImGui.Checkbox("Auto Loop Crafter Missions (Weaver, LTW, GSM, ARM, BSM, CRP)", ref autoCrafter))
+            if (ImGui.Checkbox("Auto Loop Crafter Missions (CRP/BSM/ARM/GSM/LTW/WVR/ALC/CUL)", ref autoCrafter))
             {
                 this.Configuration.AutoLoopCrafterMissions = autoCrafter;
                 this.Configuration.Save();
@@ -87,8 +87,8 @@ namespace CosmicBaiter
 
             ImGui.Spacing();
             ImGui.Text($"Learned mission IDs:\nMiner: {this.Configuration.MinerMissionId} | Botanist: {this.Configuration.BotanistMissionId}\n" +
-           $"CRP: {this.Configuration.CarpenterMissionId} | BSM: {this.Configuration.BlacksmithMissionId} | ARM: {this.Configuration.ArmorerMissionId}\n" +
-           $"GSM: {this.Configuration.GoldsmithMissionId} | LTW: {this.Configuration.LeatherworkerMissionId} | WVR: {this.Configuration.WeaverMissionId}");
+           $"CRP: {this.Configuration.CarpenterMissionId} | BSM: {this.Configuration.BlacksmithMissionId} | ARM: {this.Configuration.ArmorerMissionId} | GSM: {this.Configuration.GoldsmithMissionId}\n" +
+           $"LTW: {this.Configuration.LeatherworkerMissionId} | WVR: {this.Configuration.WeaverMissionId} | ALC: {this.Configuration.AlchemistMissionId} | CUL: {this.Configuration.CulinarianMissionId}");
 
             if (ImGui.Button("Reset learned IDs"))
             {
@@ -100,6 +100,8 @@ namespace CosmicBaiter
                 this.Configuration.GoldsmithMissionId = 0;
                 this.Configuration.LeatherworkerMissionId = 0;
                 this.Configuration.WeaverMissionId = 0;
+                this.Configuration.AlchemistMissionId = 0;
+                this.Configuration.CulinarianMissionId = 0;
                 this.Configuration.Save();
             }
             ImGui.TextWrapped("Start the correct mission once on each job to capture its ID, then enable auto.");
