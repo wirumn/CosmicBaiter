@@ -488,7 +488,9 @@ public sealed class Plugin : IDalamudPlugin
 
             if (_recipeWasOpen && _recipeSettledTick != 0 && waited >= threshold)
             {
-                if (!Services.Condition[ConditionFlag.Crafting])
+                // Removed ConditionFlag.Crafting check because the game puts you in a crafting stance
+                // instantly when the mission initiates, preventing the first craft.
+                // If the recipe notebook is open, we are guaranteed not to be mid-synthesis.
                 {
                     long timeRem = GetCrafterTimeRemaining();
                     
@@ -549,5 +551,6 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
 
 
