@@ -23,7 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     // Auto-loop tuning (milliseconds).
     private const long MinNodeOpenMs = 1500;      // ignore Gathering-window flickers shorter than this
     private const long ReportDelayMs = 1500;      // wait this long after the last node's window closes before reporting
-    private const long MissionGoneMs = 1000;      // mission id must read 0 this long before we trust it's really over (flicker guard)
+    private const long MissionGoneMs = 3500;      // mission id must read 0 this long before we trust it's really over (flicker guard)
     private const long InitiateCooldownMs = 3000; // minimum gap between InitiateMission attempts
     private const int  MaxInitiateAttempts = 3;   // give up + disable after this many failed starts
 
@@ -565,6 +565,7 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
 
 
 
