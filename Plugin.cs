@@ -225,6 +225,8 @@ public sealed class Plugin : IDalamudPlugin
         _lastInitiateTick = 0;
         _reportRequested = false;
         _initiateAttempts = 0;
+        _isActuallyCrafting = false;
+        _craftingStartedTick = 0;
         _gatheringWasOpen = false;
         _gatheringOpenedTick = 0;
         _gatheringClosedTick = 0;
@@ -544,6 +546,8 @@ public sealed class Plugin : IDalamudPlugin
         else
         {
             _reportRequested = false;
+            _isActuallyCrafting = false;
+            _craftingStartedTick = 0;
             _recipeWasOpen = false;
             _recipeSettledTick = 0;
             _craftClicked = false;
@@ -574,6 +578,8 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
+
 
 
 
