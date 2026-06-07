@@ -171,7 +171,7 @@ public sealed class Plugin : IDalamudPlugin
                 EquipBaitIfNecessary();
             }
 
-            if (currentJobId == FisherJobId || currentJobId == 16 /* Miner */ || currentJobId == 17 /* Botanist */)
+            if (currentJobId == FisherJobId || currentJobId == 16 || currentJobId == 17 || IsCrafterJob(currentJobId))
             {
                 if (this.Configuration.AutoOpenMissionProgress)
                 {
@@ -574,6 +574,7 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
 
 
 
