@@ -44,6 +44,7 @@ public sealed class Plugin : IDalamudPlugin
 
     // Crafter tracking.
     private bool _isActuallyCrafting = false;
+    private long _craftingStartedTick = 0;
     private bool _recipeWasOpen = false;
     private long _recipeSettledTick = 0;
     private bool _craftClicked = false;
@@ -472,12 +473,20 @@ public sealed class Plugin : IDalamudPlugin
             if (isCrafting && !_isActuallyCrafting)
             {
                 _isActuallyCrafting = true;
+                _craftingStartedTick = now;
             }
             else if (!isCrafting && _isActuallyCrafting)
             {
                 _isActuallyCrafting = false;
-                Services.Log.Information("[AutoLoop] Crafting state ended. Re-opening WKSRecipeNotebook...");
-                AgentRecipeNote.Instance()->Show();
+                if (now - _craftingStartedTick > 3000)
+                {
+                    Services.Log.Information("[AutoLoop] Crafting state ended cleanly. Re-opening WKSRecipeNotebook...");
+                    AgentRecipeNote.Instance()->Show();
+                }
+                else
+                {
+                    Services.Log.Information("[AutoLoop] Crafting state flicker ignored.");
+                }
             }
 
             bool recipeOpen = IsRecipeNoteOpen();
@@ -565,6 +574,7 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
 
 
 
