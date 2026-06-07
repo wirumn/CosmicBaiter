@@ -1,0 +1,23 @@
+[{
+  "RepoUrl": null,
+  "Tags": [
+    "fishing",
+    "cosmic exploration",
+    "miner",
+    "botanist",
+    "gathering"
+  ],
+  "DalamudApiLevel": 15,
+  "DownloadLinkInstall": "https://raw.githubusercontent.com/wirumn/CosmicBaiter/repo/latest.zip",
+  "Author": "wirumn",
+  "DownloadLinkUpdate": "https://raw.githubusercontent.com/wirumn/CosmicBaiter/repo/latest.zip",
+  "DownloadCount": 0,
+  "DownloadLinkTesting": "https://raw.githubusercontent.com/wirumn/CosmicBaiter/repo/latest.zip",
+  "AssemblyVersion": "1.5.0.0",
+  "Name": "CosmicBaiter",
+  "Punchline": "Cosmic Exploration helpers: auto-bait, mission window, and auto start/report.",
+  "LastUpdate": 1780836720,
+  "Description": "Automates Cosmic Exploration Fisher, Miner, Botanist, and Crafter missions.",
+  "InternalName": "CosmicBaiter",
+  "ApplicableVersion": "any"
+}]
