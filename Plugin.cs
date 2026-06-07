@@ -5,6 +5,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Game.WKS;
@@ -42,6 +43,7 @@ public sealed class Plugin : IDalamudPlugin
     private int _nodesGathered = 0;
 
     // Crafter tracking.
+    private bool _isActuallyCrafting = false;
     private bool _recipeWasOpen = false;
     private long _recipeSettledTick = 0;
     private bool _craftClicked = false;
@@ -466,6 +468,18 @@ public sealed class Plugin : IDalamudPlugin
             if (_reportRequested)
                 return;
 
+            bool isCrafting = Services.Condition[ConditionFlag.Crafting];
+            if (isCrafting && !_isActuallyCrafting)
+            {
+                _isActuallyCrafting = true;
+            }
+            else if (!isCrafting && _isActuallyCrafting)
+            {
+                _isActuallyCrafting = false;
+                Services.Log.Information("[AutoLoop] Crafting state ended. Re-opening WKSRecipeNotebook...");
+                AgentRecipeNote.Instance()->Show();
+            }
+
             bool recipeOpen = IsRecipeNoteOpen();
             
             if (recipeOpen && !_recipeWasOpen)
@@ -551,6 +565,8 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 }
+
+
 
 
 
